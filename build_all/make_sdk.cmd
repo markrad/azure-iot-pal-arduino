@@ -1,7 +1,7 @@
 @REM Copyright (c) Microsoft. All rights reserved.
 @REM Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-@echo off
+rem @echo off
 
 REM This script creates the SDK folder with the latest bits from the Azure SDK repository.
 REM It removes some files we do not need.
@@ -21,19 +21,24 @@ rem // The location of the Arduino PAL directory relative to this file
 set Arduino_pal_path=%arduino_repo_root%pal\
 set AzureIoTSDKs_path=%arduino_repo_root%sdk\
 
-
 set AzureIoTHub_path=%Libraries_path%\AzureIoTHub\
 set AzureIoTProtocolHTTP_path=%Libraries_path%\AzureIoTProtocol_HTTP\
 set AzureIoTProtocolMQTT_path=%Libraries_path%\AzureIoTProtocol_MQTT\
 set AzureIoTProtocolAMQP_path=%Libraries_path%\AzureIoTProtocol_AMQP\
 set AzureIoTUtility_path=%Libraries_path%\AzureIoTUtility\
+set AzureIoTSocketWiFi_path=%Libraries_path%\AzureIoTSocket_WiFi\
+set AzureIoTSocketEthernet_path=%Libraries_path%\AzureIoTSocket_Ethernet2\
+set AzureIoTTLSmbed_path=%Libraries_path%\AzureIoTTLS_mbedTLS\
+set AzureIoTTLSbear_path=%Libraries_path%\AzureIoTTLS_BearSSL\
 
 set AzureUHTTP_path=%AzureIoTProtocolHTTP_path%src\azure_uhttp_c\
 set AzureUMQTT_path=%AzureIoTProtocolMQTT_path%src\azure_umqtt_c\
 set AzureUAMQP_path=%AzureIoTProtocolAMQP_path%src\azure_uamqp_c\
 set SharedUtility_path=%AzureIoTUtility_path%src\azure_c_shared_utility\
 set Adapters_path=%AzureIoTUtility_path%src\adapters\
-set sdk_path=%AzureIoTHub_path%src\sdk\
+rem //set MbedTLS_path=%Arduino_pal_path%mbedtls\
+set sdk_path=%AzureIoTHub_path%src\
+set internal_path=%AzureIoTHub_path%\src\internal
 
 mkdir %Libraries_path%
 pushd %Libraries_path%
@@ -44,8 +49,13 @@ robocopy %~dp0\base-libraries\AzureIoTHub %AzureIoTHub_path% -MIR
 robocopy %~dp0\base-libraries\AzureIoTUtility %AzureIoTUtility_path% -MIR
 robocopy %~dp0\base-libraries\AzureIoTProtocol_HTTP %AzureIoTProtocolHTTP_path% -MIR
 robocopy %~dp0\base-libraries\AzureIoTProtocol_MQTT %AzureIoTProtocolMQTT_path% -MIR
+robocopy %~dp0\base-libraries\AzureIoTSocket_WiFi %AzureIoTSocketWiFi_path% -MIR
+robocopy %~dp0\base-libraries\AzureIoTSocket_Ethernet2 %AzureIoTSocketEthernet_path% -MIR
+robocopy %~dp0\base-libraries\AzureIoTTLS_BearSSL %AzureIoTTLSbear_path% -MIR
+robocopy %~dp0\base-libraries\AzureIoTTLS_mbedTLS %AzureIoTTLSmbed_path% -MIR
 
 mkdir %sdk_path%
+mkdir %internal_path%
 
 cd /D %AzureIoTSDKs_path%
 rem echo Upstream HEAD @ > %sdk_path%metadata.txt
@@ -57,19 +67,31 @@ copy %AzureIoTSDKs_path%LICENSE %AzureIoTHub_path%LICENSE
 
 copy %AzureIoTSDKs_path%iothub_client\src\ %sdk_path%
 copy %AzureIoTSDKs_path%iothub_client\inc\ %sdk_path%
+copy %AzureIoTSDKs_path%iothub_client\inc\internal %internal_path%\
 copy %AzureIoTSDKs_path%serializer\src\ %sdk_path%
 copy %AzureIoTSDKs_path%serializer\inc\ %sdk_path%
 copy %AzureIoTSDKs_path%deps\parson\parson.* %sdk_path%
-copy %AzureIoTSDKs_path%serializer\samples\simplesample_http\simplesample_http.* %AzureIoTHub_path%examples\simplesample_http
-copy %AzureIoTSDKs_path%serializer\samples\simplesample_http\simplesample_http.* %AzureIoTProtocolHTTP_path%examples\simplesample_http
-copy %AzureIoTSDKs_path%serializer\samples\simplesample_mqtt\simplesample_mqtt.* %AzureIoTProtocolMQTT_path%examples\simplesample_mqtt
-copy %AzureIoTSDKs_path%serializer\samples\simplesample_http\simplesample_http.* %AzureIoTUtility_path%examples\simplesample_http
+rem // copy %AzureIoTSDKs_path%serializer\samples\simplesample_http\simplesample_http.* %AzureIoTHub_path%examples\simplesample_http
+rem // copy %AzureIoTSDKs_path%serializer\samples\simplesample_http\simplesample_http.* %AzureIoTProtocolHTTP_path%examples\simplesample_http
+rem // copy %AzureIoTSDKs_path%serializer\samples\simplesample_mqtt\simplesample_mqtt.* %AzureIoTProtocolMQTT_path%examples\simplesample_mqtt
+rem // copy %AzureIoTSDKs_path%serializer\samples\simplesample_http\simplesample_http.* %AzureIoTUtility_path%examples\simplesample_http
 
 mkdir %SharedUtility_path%
 mkdir %Adapters_path%
 copy %AzureIoTSDKs_path%c-utility\inc\azure_c_shared_utility %SharedUtility_path%
 copy %AzureIoTSDKs_path%c-utility\src\ %SharedUtility_path%
-copy /y %Arduino_pal_path%\azure_c_shared_utility\*.* %SharedUtility_path%
+
+rem // Delete windows only files
+del %SharedUtility_path%logging_stacktrace.c
+del %SharedUtility_path%logging_stacktrace.h
+
+rem // Copy submodules to main so that -I finds them
+mkdir %AzureIoTUtility_path%src\azure_macro_utils
+copy %AzureIoTSDKs_path%c-utility\deps\azure-macro-utils-c\inc\azure_macro_utils %AzureIoTUtility_path%src\azure_macro_utils
+mkdir %AzureIoTUtility_path%src\umock_c
+xcopy /E /I %AzureIoTSDKs_path%c-utility\deps\umock-c\inc\umock_c\*.* %AzureIoTUtility_path%src\umock_c
+
+copy %Arduino_pal_path%\azure_c_shared_utility\*.* %SharedUtility_path%
 
 copy %AzureIoTSDKs_path%c-utility\pal\agenttime.c %Adapters_path%
 copy %AzureIoTSDKs_path%c-utility\pal\tickcounter.c %Adapters_path%
@@ -83,6 +105,15 @@ rem // Copy the Arduino-specific files from the Arduino PAL path
 copy %Arduino_pal_path%inc\*.* %Adapters_path%
 copy %Arduino_pal_path%src\*.* %Adapters_path%
 
+rem // Delete this - not currently used (and may never be)
+del %Adapters_path%\tlsio_arduino.c
+
+rem // Add the MbedTLS adaptor for the ESP32
+copy %AzureIoTSDKs_path%c-utility\adapters\tlsio_mbedtls.c %AzureIoTTLSmbed_path%src
+
+rem // Add the BearSSL adaptor for the ESP8266
+copy %AzureIoTSDKs_path%c-utility\adapters\tlsio_bearssl.c %AzureIoTTLSbear_path%src
+
 mkdir %AzureUHTTP_path%
 copy %AzureIoTSDKs_path%c-utility\adapters\httpapi_compact.c %AzureUHTTP_path%
 
@@ -91,19 +122,26 @@ copy %AzureIoTSDKs_path%umqtt\src %AzureUMQTT_path%
 mkdir %AzureIoTHub_path%src\azure_umqtt_c\
 copy %AzureIoTSDKs_path%umqtt\inc\azure_umqtt_c %AzureIoTHub_path%src\azure_umqtt_c\
 
+copy %Arduino_pal_path%AzureIoTSocket_WiFi\socketio_esp32wifi.cpp %AzureIoTSocketWiFi_path%src
+@echo %Arduino_pal_path%AzureIoTSocket_Ethernet\socketio_esp32ethernet2.cpp
+@echo %AzureIoTSocketEthernet_path%src
+copy %Arduino_pal_path%AzureIoTSocket_Ethernet\socketio_esp32ethernet2.cpp %AzureIoTSocketEthernet_path%src
+
 del %sdk_path%*amqp*.*
 del %sdk_path%iothubtransportmqtt_websockets.*
 
-del %SharedUtility_path%tlsio_mbedtls.*
 del %SharedUtility_path%tlsio_appleios.*
 del %SharedUtility_path%tlsio_cyclonessl*.*
 del %SharedUtility_path%tlsio_openssl.*
 del %SharedUtility_path%tlsio_schannel.*
 del %SharedUtility_path%tlsio_wolfssl.*
+rem del %SharedUtility_path%tlsio_mbedtls.c
+rem del %SharedUtility_path%tlsio_bearssl.c
 del %SharedUtility_path%gbnetwork.*
 
 del %SharedUtility_path%wsio*.*
 del %SharedUtility_path%x509_*.*
 del %SharedUtility_path%etw*.*
+del %SharedUtility_path%http_proxy_io.c
 
 popd
